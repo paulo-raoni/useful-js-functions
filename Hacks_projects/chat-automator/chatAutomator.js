@@ -5,7 +5,16 @@ const GLOBAL_CONSTANTS = {
   TOTAL_BLACKLIST_VALIDATION: 15,
   MAXIMUM_RESPONSE_COUNT: 10,
   RECONNECT_INTERVAL: 3000,
-  CHECK_EXIT_INTERVAL: 1000
+  CHECK_EXIT_INTERVAL: 1000,
+  MESSAGE_LIST: [
+    {
+      message: "Olá tudo bem?",
+      timeout: 3000
+    }, {
+      message:"Um belo dia hoje, não?",
+      timeout: 5000
+    }
+  ]
 }
 
 const globalVariables = {
@@ -16,10 +25,18 @@ const globalVariables = {
 
 class DOMComponents {
   static getMyMsgElement() {
+    return document.querySelector("#chatarea > p.yourmsg");
+  }
+
+  static getAllMyMsgElement() {
     return document.querySelectorAll("#chatarea > p.yourmsg");
   }
 
   static getTheirMsgElement() {
+    return document.querySelector("#chatarea > p.theirmsg");
+  }
+
+  static getAllTheirMsgElement() {
     return document.querySelectorAll("#chatarea > p.theirmsg");
   }
 
@@ -53,13 +70,19 @@ class Utils {
   }
 
   static hasTheirMessage() {
-    return DOMComponents.getTheirMsgElement()? true : false;
+    return DOMComponents.getTheirMsgElement() ? true : false;
+  }
+
+  static exposeCurrentTheirMessageList() {
+    const allTheirMsg = Array.from(DOMComponents.getAllTheirMsgElement()).map(el => el.textContent);
+    console.log("theirMsgList: ");
+    console.log(allTheirMsg);
   }
 }
 
 class Validator {
   static async validateBlacklistedWords() {
-    const theirMsgElement = DOMComponents.getTheirMsgElement();
+    const theirMsgElement = DOMComponents.getAllTheirMsgElement();
     let theirMsg = "";
     
     theirMsgElement.forEach(el => {
@@ -78,7 +101,7 @@ class Validator {
   }
 
   static checkChatExitByUser() {
-    const myMsgElement = DOMComponents.getMyMsgElement();
+    const myMsgElement = DOMComponents.getAllMyMsgElement();
     let myMsg = "";
     myMsgElement.forEach(el => {
       myMsg += el.innerText;
@@ -97,7 +120,7 @@ class Validator {
 
   static validateResponseTime() {
     try {
-      if(globalVariables.counterValidation === GLOBAL_CONSTANTS.MAXIMUM_RESPONSE_COUNT && hasTheirMessage()) {
+      if(globalVariables.counterValidation === GLOBAL_CONSTANTS.MAXIMUM_RESPONSE_COUNT && !Utils.hasTheirMessage()) {
         Chat.endChat();
         throw new Error(`Chat finished by maximum response waiting time ${GLOBAL_CONSTANTS.MAXIMUM_RESPONSE_COUNT * GLOBAL_CONSTANTS.RECONNECT_INTERVAL} seconds`);
       }
@@ -125,32 +148,36 @@ class Chat {
     sendMsgButton.click();
   }
 
+  static messageExists(msg) {
+    const regexp = new RegExp(`^${msg}$`, 'g');
+    const messageList = DOMComponents.getAllMyMsgElement();
+    return Array.from(messageList).find(el => regexp.test(el.innerHTML) );
+  }  
+
   static endChat() {
     const endChatButton = DOMComponents.getEndChatButton(); 
     endChatButton.click();
   }
 
-  static messageSender(message, timeInterval, firstMessage) {
+  static messageSender(message, timeOut) {
     return new Promise((resolve, reject) => {
       setTimeout(() => { 
         const buttonNewChat = DOMComponents.getButtonNewChat();
+
         if(buttonNewChat) {
           reject("Message stopped by new chat...");
-        }
-        if(!Utils.hasMyMsg() && firstMessage) {  
-          resolve(this.messageWritter(message)); 
-        } else if(Utils.hasMyMsg()) {
-          resolve(this.messageWritter(message)); 
+        } else if(!Chat.messageExists(message)) {
+          resolve(this.messageWritter(message));
         } else {
-          reject("Unexpected Error");
-        }
-      }, timeInterval);
+          reject(`Message ${message} already exists on chat.`);
+        }   
+
+      }, timeOut);
     });
   }
 
   static async handleChat() {
     const buttonNewChat = DOMComponents.getButtonNewChat();
-    const textArea = DOMComponents.getTextAreaElement();
     Interval.clearIntervalCheckValidation(globalVariables.intervalCheckValidation);
     ++globalVariables.counterValidation;
     
@@ -162,14 +189,16 @@ class Chat {
     
     if(!buttonNewChat) {  
       return;
-    }      
-  
+    }
+
+    Utils.exposeCurrentTheirMessageList();
     globalVariables.counterValidation = 0; 
     
     buttonNewChat.click();    
     try {
-      await Chat.messageSender("Olá tudo bem?", 3000, true);
-      await Chat.messageSender("Um belo dia hoje, não?", 5000); 
+      for(const messageObj of GLOBAL_CONSTANTS.MESSAGE_LIST) {
+        await Chat.messageSender(messageObj.message, messageObj.timeout);
+      }
     } catch (error) {
       log("Error: ", error);
       throw error;

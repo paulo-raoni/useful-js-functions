@@ -129,6 +129,26 @@ class Validator {
     }
   }
 
+  static validateMessageToWrite(message) {
+    const buttonNewChat = DOMComponents.getButtonNewChat();
+    const existsMessage = Validator.checkMessageExists(message);
+    if(buttonNewChat) {
+      console.error("Message stopped by new chat...");
+      return false;
+    } else if(existsMessage) {
+      console.error(`Message ${message} already exists on chat.`);
+      return false;
+    } else {
+      return true;
+    }  
+  }
+
+  static checkMessageExists(msg) {
+    const regexp = new RegExp(`^${msg}$`, 'g');
+    const messageList = DOMComponents.getAllMyMsgElement();
+    return Array.from(messageList).find(el => regexp.test(el.innerHTML) );
+  }  
+
 }
 
 
@@ -142,36 +162,23 @@ class Interval {
 
 class Chat {
   static messageWritter(message) {
+    if(!Validator.validateMessageToWrite(message)) 
+      return;
     const sendMsgButton = DOMComponents.getSendMsgButton();
     const textArea = DOMComponents.getTextAreaElement();
     textArea.value = message;
     sendMsgButton.click();
-  }
-
-  static messageExists(msg) {
-    const regexp = new RegExp(`^${msg}$`, 'g');
-    const messageList = DOMComponents.getAllMyMsgElement();
-    return Array.from(messageList).find(el => regexp.test(el.innerHTML) );
-  }  
+  } 
 
   static endChat() {
     const endChatButton = DOMComponents.getEndChatButton(); 
     endChatButton.click();
-  }
+  }  
 
   static messageSender(message, timeOut) {
     return new Promise((resolve, reject) => {
       setTimeout(() => { 
-        const buttonNewChat = DOMComponents.getButtonNewChat();
-
-        if(buttonNewChat) {
-          reject("Message stopped by new chat...");
-        } else if(!Chat.messageExists(message)) {
-          resolve(this.messageWritter(message));
-        } else {
-          reject(`Message ${message} already exists on chat.`);
-        }   
-
+        resolve(this.messageWritter(message));
       }, timeOut);
     });
   }

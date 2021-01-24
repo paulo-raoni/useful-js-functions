@@ -1,5 +1,5 @@
 const {log} = console;
-const blackList = ["H", "h", "gay"];
+const blackList = ["bad language", "another bad language", "example 3"];
 
 const GLOBAL_CONSTANTS = {
   TOTAL_BLACKLIST_VALIDATION: 15,
@@ -144,9 +144,9 @@ class Validator {
   }
 
   static checkMessageExists(msg) {
-    const regexp = new RegExp(`^${msg}$`, 'g');
+    const regexp = new RegExp(`^${msg.split(' ').join("")}$`, 'g');
     const messageList = DOMComponents.getAllMyMsgElement();
-    return Array.from(messageList).find(el => regexp.test(el.innerHTML) );
+    return Array.from(messageList).find(el => regexp.test(el.innerHTML.split(' ').join("")) );
   }  
 
 }
@@ -204,7 +204,8 @@ class Chat {
     buttonNewChat.click();    
     try {
       for(const messageObj of GLOBAL_CONSTANTS.MESSAGE_LIST) {
-        await Chat.messageSender(messageObj.message, messageObj.timeout);
+        if(!Validator.checkMessageExists(messageObj.message))
+          await Chat.messageSender(messageObj.message, messageObj.timeout);
       }
     } catch (error) {
       log("Error: ", error);
